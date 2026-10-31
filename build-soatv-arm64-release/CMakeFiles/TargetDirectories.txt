@@ -1,0 +1,7 @@
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/flutter_elinux_gbm.dir
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/edit_cache.dir
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/rebuild_cache.dir
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/list_install_components.dir
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/install.dir
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/install/local.dir
+/home/azureuser/flutter-embedded-linux/build-soatv-arm64-release/CMakeFiles/install/strip.dir

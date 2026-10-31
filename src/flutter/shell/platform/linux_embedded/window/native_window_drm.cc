@@ -92,7 +92,10 @@ bool NativeWindowDrm::ConfigureDisplay(const uint16_t rotation) {
     return false;
   }
 
-  drm_connector_id_ = connector->connector_id;
+
+ // code change for drm mode selection
+
+  /* drm_connector_id_ = connector->connector_id;
   drm_mode_info_ = connector->modes[0];
   width_ = drm_mode_info_.hdisplay;
   height_ = drm_mode_info_.vdisplay;
@@ -100,6 +103,90 @@ bool NativeWindowDrm::ConfigureDisplay(const uint16_t rotation) {
     std::swap(width_, height_);
   }
   ELINUX_LOG(INFO) << "resolution: " << width_ << "x" << height_;
+*/
+
+
+
+  drm_connector_id_ = connector->connector_id;
+
+  if (connector->count_modes <= 0) {
+    ELINUX_LOG(ERROR) << "Connector has no display modes";
+    drmModeFreeConnector(connector);
+    drmModeFreeResources(resources);
+    return false;
+  }
+
+  int selected_mode_index = -1;
+
+  // Prefer 1080p60 for reliable Flutter rendering on the Pi.
+  for (int i = 0; i < connector->count_modes; ++i) {
+    const auto& mode = connector->modes[i];
+    if (mode.hdisplay == 1920 &&
+        mode.vdisplay == 1080 &&
+        mode.vrefresh >= 59 &&
+        mode.vrefresh <= 60) {
+      selected_mode_index = i;
+      break;
+    }
+  }
+
+  // Otherwise, choose the smallest available 60 Hz mode.
+  if (selected_mode_index < 0) {
+    unsigned long long smallest_pixels = ~0ULL;
+
+    for (int i = 0; i < connector->count_modes; ++i) {
+      const auto& mode = connector->modes[i];
+      if (mode.vrefresh < 59 || mode.vrefresh > 60) {
+        continue;
+      }
+
+      const auto pixels =
+          static_cast<unsigned long long>(mode.hdisplay) * mode.vdisplay;
+      if (pixels < smallest_pixels) {
+        smallest_pixels = pixels;
+        selected_mode_index = i;
+      }
+    }
+  }
+
+  // If no 60 Hz mode exists, choose the smallest 50–60 Hz mode.
+  if (selected_mode_index < 0) {
+    unsigned long long smallest_pixels = ~0ULL;
+
+    for (int i = 0; i < connector->count_modes; ++i) {
+      const auto& mode = connector->modes[i];
+      if (mode.vrefresh < 50 || mode.vrefresh > 60) {
+        continue;
+      }
+
+      const auto pixels =
+          static_cast<unsigned long long>(mode.hdisplay) * mode.vdisplay;
+      if (pixels < smallest_pixels) {
+        smallest_pixels = pixels;
+        selected_mode_index = i;
+      }
+    }
+  }
+
+  // Last resort: use the first mode reported by DRM.
+  if (selected_mode_index < 0) {
+    selected_mode_index = 0;
+  }
+
+  drm_mode_info_ = connector->modes[selected_mode_index];
+  width_ = drm_mode_info_.hdisplay;
+  height_ = drm_mode_info_.vdisplay;
+
+  if (rotation == 90 || rotation == 270) {
+    std::swap(width_, height_);
+  }
+
+  ELINUX_LOG(INFO) << "Selected DRM mode: " << drm_mode_info_.name
+                   << " " << drm_mode_info_.hdisplay
+                   << "x" << drm_mode_info_.vdisplay
+                   << "@" << drm_mode_info_.vrefresh << "Hz";
+  ELINUX_LOG(INFO) << "resolution: " << width_ << "x" << height_;
+
 
   auto* encoder = FindEncoder(resources, connector);
   if (!encoder) {
